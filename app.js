@@ -1,6 +1,7 @@
 //jshint esversion:6
 
 const express = require("express");
+const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
 const ejs = require("ejs");
 const _ = require("lodash");
@@ -16,13 +17,20 @@ const app = express();
 
 app.set("view engine", "ejs");
 
-let posts = [];
+//let posts = [];
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static("public"));
 
+// app.get("/", (req, res) => {
+//   res.render("home", { homeContent: homeStartingContent, posts: posts });
+// });
+
 app.get("/", (req, res) => {
-  res.render("home", { homeContent: homeStartingContent, posts: posts });
+  Post.find({}, (err, posts) => {
+    res.render("home", { homeContent: homeStartingContent, posts: posts });
+  });
 });
+
 app.get("/about", (req, res) => {
   res.render("about", { aboutContent: aboutContent });
 });
@@ -33,25 +41,50 @@ app.get("/compose", (req, res) => {
   res.render("compose");
 });
 app.post("/compose", (req, res) => {
-  const post = { title: req.body.title, content: req.body.post };
+  const post = new Post({ title: req.body.title, content: req.body.post });
 
-  posts.push(post);
-  // console.log(posts);
-  res.redirect("/");
-  // console.log(req.body.posttxt);
-});
-app.get("/posts/:topic", (req, res) => {
-  const reqTitleLower = _.lowerCase(req.params.topic);
-  posts.forEach((post) => {
-    const postTitleLower = _.lowerCase(post.title);
-    if (postTitleLower == reqTitleLower) {
-      res.render("post", {
-        title: post.title,
-        content: post.content,
-      });
+  //posts.push(post);
+  //add the post to the database
+  post.save((err) => {
+    if (!err) {
+      res.redirect("/");
     }
   });
+  // console.log(posts);
+
+  // console.log(req.body.posttxt);
 });
+app.get("/posts/:postId", (req, res) => {
+  //const reqTitleLower = _.lowerCase(req.params.topic);
+  const requestedPostId = req.params.postId;
+  Post.findOne({ _id: requestedPostId }, (err, post) => {
+    res.render("post", {
+      title: post.title,
+      content: post.content,
+    });
+  });
+  // posts.forEach((post) => {
+  //   const postTitleLower = _.lowerCase(post.title);
+  //   if (postTitleLower == reqTitleLower) {
+  //     res.render("post", {
+  //       title: post.title,
+  //       content: post.content,
+  //     });
+  //   }
+  // });
+});
+
+//Database
+//connection to a new database called 'blogDB'
+mongoose.connect("mongodb://localhost:27017/blogDB", { useNewUrlParser: true });
+//defining the schema of the database
+const postSchema = {
+  title: String,
+  content: String,
+};
+//creating a new mongoose model using the schema to define the post collection
+const Post = mongoose.model("Post", postSchema);
+
 app.listen(3000, function () {
   console.log("Server started on port 3000");
 });
